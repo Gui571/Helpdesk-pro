@@ -1,0 +1,51 @@
+name: Verificações
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: helpdesk
+          POSTGRES_PASSWORD: ci_only_password
+          POSTGRES_DB: helpdesk_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U helpdesk -d helpdesk_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://helpdesk:ci_only_password@localhost:5432/helpdesk_test
+      SEED_ADMIN_EMAIL: admin@demo.local
+      SEED_ADMIN_PASSWORD: Local-CI-Only-1234
+      TEST_ADMIN_PASSWORD: Local-CI-Only-1234
+      NEXT_TELEMETRY_DISABLED: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Instalar dependências
+        run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npm run typecheck
+      - run: npm run db:migrate
+      - run: npm run db:seed
+      - name: Testar API e proxy HTTP
+        run: |
+          npm run start -w @helpdesk/api > /tmp/helpdesk-api.log 2>&1 &
+          npm run start -w @helpdesk/web > /tmp/helpdesk-web.log 2>&1 &
+          trap 'cat /tmp/helpdesk-api.log /tmp/helpdesk-web.log' EXIT
+          curl -fsS --retry 30 --retry-delay 1 --retry-all-errors http://localhost:3000/api/health
+          TEST_API_URL=http://localhost:3000/api npm run test:integration

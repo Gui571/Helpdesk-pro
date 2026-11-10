@@ -1,0 +1,30 @@
+services:
+  api:
+    build:
+      context: .
+      target: api
+    env_file:
+      - apps/api/.env
+    environment:
+      API_HOST: 0.0.0.0
+      PORT: 4000
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-helpdesk}:${POSTGRES_PASSWORD:-local_dev_password_change_me}@postgres:5432/${POSTGRES_DB:-helpdesk}?schema=public"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/api/health').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"]
+      start_period: 30s
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  web:
+    build:
+      context: .
+      target: web
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy

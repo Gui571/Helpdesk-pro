@@ -1,0 +1,3 @@
+# Preserve LF for Docker, CI and scripts across Windows and Linux.
+* text=auto eol=lf
+*.png binary

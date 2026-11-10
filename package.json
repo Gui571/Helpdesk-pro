@@ -1,0 +1,25 @@
+{
+  "name": "helpdesk-pro",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently --kill-others-on-fail -n API,WEB -c blue,green \"npm run dev -w @helpdesk/api\" \"npm run dev -w @helpdesk/web\"",
+    "build": "npm run build -w @helpdesk/api && npm run build -w @helpdesk/web",
+    "test": "npm run test -w @helpdesk/api",
+    "db:generate": "npm run db:generate -w @helpdesk/api",
+    "db:migrate": "npm run db:migrate -w @helpdesk/api",
+    "db:seed": "npm run db:seed -w @helpdesk/api",
+    "typecheck": "npm run typecheck -w @helpdesk/api && npm run typecheck -w @helpdesk/web",
+    "test:integration": "npm run test:integration -w @helpdesk/api"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "typescript": "^5.9.0"
+  },
+  "engines": {
+    "node": "^22.22.3 || ^24.15.0"
+  }
+}

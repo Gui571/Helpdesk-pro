@@ -1,0 +1,115 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+  moduleFormat        = "cjs"
+  importFileExtension = ""
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  TECHNICIAN
+  EMPLOYEE
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+model User {
+  id            String    @id @default(uuid()) @db.Uuid
+  name          String
+  email         String    @unique
+  passwordHash  String    @map("password_hash")
+  active        Boolean   @default(true)
+  role          Role      @default(EMPLOYEE)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  sessions      Session[]
+  requested     Ticket[]  @relation("RequestingUser")
+  assigned      Ticket[]  @relation("AssignedUser")
+  comments      Comment[]
+  events        TicketHistory[]
+  @@map("users")
+}
+
+model Session {
+  id         String   @id @default(uuid()) @db.Uuid
+  tokenHash  String   @unique @map("token_hash")
+  userId     String   @map("user_id") @db.Uuid
+  expiresAt  DateTime @map("expires_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model Category {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @unique
+  tickets   Ticket[]
+  @@map("categories")
+}
+
+model Ticket {
+  id          String          @id @default(uuid()) @db.Uuid
+  title       String
+  description String
+  priority    Priority        @default(MEDIUM)
+  status      TicketStatus    @default(OPEN)
+  requesterId String          @map("requester_id") @db.Uuid
+  resolution  String?
+  resolvedAt  DateTime?       @map("resolved_at")
+  dueAt       DateTime?       @map("due_at")
+  version     Int             @default(0)
+  assigneeId  String?         @map("assignee_id") @db.Uuid
+  categoryId  String          @map("category_id") @db.Uuid
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+  requester   User            @relation("RequestingUser", fields: [requesterId], references: [id])
+  assignee    User?           @relation("AssignedUser", fields: [assigneeId], references: [id])
+  category    Category        @relation(fields: [categoryId], references: [id])
+  comments    Comment[]
+  history     TicketHistory[]
+  @@index([requesterId, createdAt])
+  @@index([status, createdAt])
+  @@map("tickets")
+}
+
+model Comment {
+  id        String   @id @default(uuid()) @db.Uuid
+  content   String
+  ticketId  String   @map("ticket_id") @db.Uuid
+  authorId  String   @map("author_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id])
+  @@index([ticketId, createdAt])
+  @@map("comments")
+}
+
+model TicketHistory {
+  id        String   @id @default(uuid()) @db.Uuid
+  ticketId  String   @map("ticket_id") @db.Uuid
+  actorId   String   @map("actor_id") @db.Uuid
+  action    String
+  detail    String?
+  createdAt DateTime @default(now()) @map("created_at")
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  actor     User     @relation(fields: [actorId], references: [id])
+  @@index([ticketId, createdAt])
+  @@map("ticket_history")
+}
